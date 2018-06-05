@@ -2,9 +2,9 @@
   "name": "wfmt-alexa",
   "version": "0.0.1",
   "description": "Play the WFMT live stream with Amazon's Alexa",
-  "main": "index.js",
+  "main": "src/index.js",
   "scripts": {
-    "start": "node index.js"
+    "start": "node src/index.js"
   },
   "keywords": [
     "alexa",
@@ -17,6 +17,7 @@
   "dependencies": {
     "alexa-app": "^4.0.0",
     "ejs": "^2.5.6",
-    "express": "^4.15.2"
+    "express": "^4.15.2",
+    "request": "^2.87.0"
   }
 }
