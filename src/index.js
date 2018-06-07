@@ -1,18 +1,15 @@
-var express = require("express"),
+const express = require("express"),
     alexa = require("alexa-app"),
     request = require("request"),
     fetch = require('node-fetch'),
     PORT = process.env.PORT || 3000,
     app = express(),
     // Setup the alexa app and attach it to express before anything else.
-    alexaApp = new alexa.app("");
+    alexaApp = new alexa.app(""),
+    //import global config/helper object
+    wfmt = require('./config.js');
 
-//global config
-const config = {
-  stream: {
-    url: "https://wfmt-wowza.streamguys1.com/live/smil:wfmt.smil/playlist.m3u8"
-  }
-}
+app.set("view engine", "ejs");
 
 // POST calls to / in express will be handled by the app.request() function
 alexaApp.express({
@@ -20,24 +17,20 @@ alexaApp.express({
   checkCert: true,
   // sets up a GET route when set to true. This is handy for testing in
   // development, but not recommended for production.
-  debug: true
+  debug: false
 });
-
-app.set("view engine", "ejs");
-
-function startStream(response) {
-    response.audioPlayerPlayStream('REPLACE_ALL', {
-      token: config.stream.url,
-      url: config.stream.url,
-      offsetInMilliseconds: 0
-  });
-}
 
 alexaApp.launch(function(request, response) {
   console.log("App launched");
-  startStream(response);
+  wfmt.stream.start(response);
 });
 
+alexaApp.sessionEnded(function(request, response) {
+  console.log("In sessionEnded");
+  console.error('Alexa ended the session due to an error');
+});
+
+//Intents
 alexaApp.intent("stream", {
     "slots": {},
     "utterances": [
@@ -55,10 +48,9 @@ alexaApp.intent("stream", {
       "stream wfmt"
     ]
   }, function(request, response) {
-      console.log("In play intent");
-      startStream(response);
-    }
-);
+      console.log("In stream intent");
+      wfmt.stream.start(response);
+});
 
 alexaApp.intent("whats_on", {
     "slots": {},
@@ -74,64 +66,160 @@ alexaApp.intent("whats_on", {
       "current song",
       "current track",
       "currently playing",
-      "what's on"
+      "what's on",
+      "what's on now",
+      "what's on right now",
+      "what's playing now",
+      "what's playing right now"
     ]
   }, function(req, response) {
     console.log("In what's on intent");
 
-    return fetch("https://clients.webplaylist.org/cgi-bin/wfmt/wonV2.json").then((json) => {
+    return wfmt.schedule.getOnNow().then((data) => {
+      response.say('Now playing ' + data.title + " by " + data.subtitle + " on " + data.show);
+    });
+});
+
+alexaApp.intent("previous_track", {
+    "slots": {},
+    "utterances": [
+      "what just played",
+      "what was just on",
+      "what was the previous track",
+      "what was the last track",
+      "what was the previous song",
+      "what was the last song",
+      "what song was that",
+      "what track was that",
+      "previous track",
+      "previous song"
+    ]
+  }, function(req, response) {
+    console.log("In previous track intent");
+
+    return fetch(wfmt.schedule.url).then((json) => {
       return json.json()
     }).then((json) => {
-      var currentlyPlaying = "On WFMT right now, " + json.track.title + " by " + json.track.composer;
-      response.say(currentlyPlaying);
+      var previousTrack = "The previous song was " + json.prev_track[0].title + " by " + json.prev_track[0].composer;
+      response.say(previousTrack);
     }).catch((ex) => {
-      response.say("Sorry, something went wrong! Try again later.");
+      wfmt.errorResponse(response);
     });
-  }
-);
+});
 
 alexaApp.intent("AMAZON.CancelIntent", {
     "slots": {},
-    "utterances": []
+    "utterances": [
+      'stop',
+      'cancel',
+      'stop playing',
+      'cancel playing'
+    ]
   }, function(request, response) {
-    console.log("Sent cancel response");
-  	response.audioPlayerStop();
-  	return;
-  }
-);
+    console.log("In cancel intent");
+    response.audioPlayerStop();
+    return;
+});
 
 alexaApp.intent("AMAZON.PauseIntent", {
     "slots": {},
-    "utterances": []
+    "utterances": [
+      'pause'
+    ]
   }, function(request, response) {
-    console.log("Pausing intent");
-  	response.audioPlayerStop();
-  	return;
-  }
-);
+    console.log("In pause intent");
+    response.audioPlayerStop();
+    return;
+});
 
 alexaApp.intent("AMAZON.ResumeIntent", {
     "slots": {},
-    "utterances": []
+    "utterances": [
+      'resume',
+      'start playing again'
+    ]
   }, function(request, response) {
-    console.log("Resume intent");
-    startStream(response);
-  	return;
-  }
-);
+    console.log("In resume intent");
+    wfmt.stream.start(response);
+    return;
+});
 
 alexaApp.intent("AMAZON.StopIntent", {
     "slots": {},
+    "utterances": [
+      'stop',
+      'cancel',
+      'stop playing',
+      'cancel playing'
+    ]
+  }, function(request, response) {
+    console.log("In stop intent");
+    response.audioPlayerStop();
+    return;
+});
+
+alexaApp.intent("AMAZON.LoopOffIntent", {
+    "slots": {},
     "utterances": []
   }, function(request, response) {
-    response.audioPlayerStop();
-  	return;
-  }
-);
+    wfmt.notSupportedResponse(response);
+    return;
+});
 
-alexaApp.sessionEnded(function(request, response) {
-  console.log("In sessionEnded");
-  console.error('Alexa ended the session due to an error');
+alexaApp.intent("AMAZON.LoopOnIntent", {
+    "slots": {},
+    "utterances": []
+  }, function(request, response) {
+    wfmt.notSupportedResponse(response);
+    return;
+});
+
+alexaApp.intent("AMAZON.NextIntent", {
+    "slots": {},
+    "utterances": []
+  }, function(request, response) {
+    wfmt.notSupportedResponse(response);
+    return;
+});
+
+alexaApp.intent("AMAZON.PreviousIntent", {
+    "slots": {},
+    "utterances": []
+  }, function(request, response) {
+    wfmt.notSupportedResponse(response);
+    return;
+});
+
+alexaApp.intent("AMAZON.RepeatIntent", {
+    "slots": {},
+    "utterances": []
+  }, function(request, response) {
+    wfmt.notSupportedResponse(response);
+    return;
+});
+
+alexaApp.intent("AMAZON.ShuffleOffIntent", {
+    "slots": {},
+    "utterances": []
+  }, function(request, response) {
+    wfmt.notSupportedResponse(response);
+    return;
+});
+
+alexaApp.intent("AMAZON.ShuffleOnIntent", {
+    "slots": {},
+    "utterances": []
+  }, function(request, response) {
+    wfmt.notSupportedResponse(response);
+    return;
+});
+
+alexaApp.intent("AMAZON.StartOverIntent", {
+    "slots": {},
+    "utterances": []
+  }, function(request, response) {
+    wfmt.notSupportedResponse(response);
+    return;
 });
 
 app.listen(PORT, () => console.log("Listening on port " + PORT + "."));
