@@ -1,10 +1,10 @@
 {
   "name": "wfmt-alexa",
   "version": "0.0.1",
-  "description": "Play the WFMT live stream with Amazon's Alexa",
-  "main": "src/index.js",
+  "description": "Play the WFMT live stream and get WFMT schedule information with Amazon Alexa",
+  "main": "index.js",
   "scripts": {
-    "start": "node src/index.js"
+    "start": "node index.js"
   },
   "keywords": [
     "alexa",

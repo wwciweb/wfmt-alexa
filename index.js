@@ -55,6 +55,8 @@ alexaApp.intent("stream", {
 alexaApp.intent("whats_on", {
     "slots": {},
     "utterances": [
+      "what is this",
+      "what this is",
       "what is this track",
       "what is this song",
       "which track is this",
@@ -222,4 +224,5 @@ alexaApp.intent("AMAZON.StartOverIntent", {
     return;
 });
 
-app.listen(PORT, () => console.log("Listening on port " + PORT + "."));
+// connect the alexa-app to AWS Lambda
+exports.handler = alexaApp.lambda();
